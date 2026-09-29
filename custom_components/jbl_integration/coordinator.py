@@ -17,6 +17,9 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+# Seconds to wait for the device during setup before giving up and retrying later.
+SETUP_TIMEOUT = 5
+
 class Coordinator(DataUpdateCoordinator):
     """Class to manage fetching data from the API."""
 
@@ -76,8 +79,13 @@ class Coordinator(DataUpdateCoordinator):
             key_path
         )
         
-        device_info = await self.getDeviceInfo()
-        device_Type = await self.getDeviceType() 
+        device_info = await self.getDeviceInfo(timeout=SETUP_TIMEOUT)
+        if not device_info:
+            # Powered off or unreachable: hand the entry back to Home Assistant,
+            # which retries in the background, instead of holding up startup
+            # for the second request's timeout as well.
+            raise ConfigEntryNotReady(f"No answer from {self.address}")
+        device_Type = await self.getDeviceType()
 
         # Ensure device_info has all the expected keys and provide fallback values if necessary
         mac_address = device_info.get("wlan0_mac", "unknown_mac")
@@ -183,7 +191,7 @@ class Coordinator(DataUpdateCoordinator):
                 _LOGGER.error(f"Error getting %s: %s", command, str(e))
                 return {}
 
-    async def getDeviceInfo(self):
+    async def getDeviceInfo(self, timeout=10):
         # Disable SSL warnings
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
@@ -194,7 +202,7 @@ class Coordinator(DataUpdateCoordinator):
         
         async with aiohttp.ClientSession() as session:
             try:
-                async with asyncio.timeout(10):
+                async with asyncio.timeout(timeout):
                     async with session.get(url, headers=headers,  ssl=self.sslcontext) as response:
                         if response.status == 200:
                             response_text = await response.text()
@@ -229,33 +237,34 @@ class Coordinator(DataUpdateCoordinator):
 
         try:        
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, data=payload, headers=headers) as response:
-                    if response.status == 200:
-                        response_text = await response.text()
+                async with asyncio.timeout(SETUP_TIMEOUT):
+                    async with session.post(url, data=payload, headers=headers) as response:
+                        if response.status == 200:
+                            response_text = await response.text()
                         
-                        # Parse XML response
-                        namespace = {
-                            's': 'http://schemas.xmlsoap.org/soap/envelope/', 
-                            'u': 'urn:schemas-upnp-org:service:RenderingControl:1'
-                        }
-                        from xml.etree import ElementTree as ET
-                        root = ET.fromstring(response_text)
+                            # Parse XML response
+                            namespace = {
+                                's': 'http://schemas.xmlsoap.org/soap/envelope/', 
+                                'u': 'urn:schemas-upnp-org:service:RenderingControl:1'
+                            }
+                            from xml.etree import ElementTree as ET
+                            root = ET.fromstring(response_text)
                         
-                        # Find the Status element
-                        status_element = root.find('.//u:GetControlDeviceInfoResponse/Status', namespace)
+                            # Find the Status element
+                            status_element = root.find('.//u:GetControlDeviceInfoResponse/Status', namespace)
                         
-                        if status_element is not None:
-                            # Get the text content of the Status element (which is a JSON string)
-                            status_json_str = status_element.text
+                            if status_element is not None:
+                                # Get the text content of the Status element (which is a JSON string)
+                                status_json_str = status_element.text
                             
-                            # Parse the JSON string into a Python dictionary
-                            status_data = json.loads(status_json_str)
+                                # Parse the JSON string into a Python dictionary
+                                status_data = json.loads(status_json_str)
                             
-                            # Output the status data
-                            return status_data
-                        else:
-                            _LOGGER.error("Failed to fetch data: %s", response.status)
-                            return {}
+                                # Output the status data
+                                return status_data
+                            else:
+                                _LOGGER.error("Failed to fetch data: %s", response.status)
+                                return {}
         except Exception as e:
             _LOGGER.error("Error fetching data: %s", str(e))
             raise ConfigEntryNotReady(f"Timeout while connecting to {self.address}") from e
@@ -530,8 +539,13 @@ class Coordinator(DataUpdateCoordinator):
 
                         self._rendering_control_sid = response.headers.get("SID")
                         if self._rendering_control_sid and self._rendering_control_renew_task is None:
-                            self._rendering_control_renew_task = self.hass.async_create_task(
-                                self._async_renew_rendering_control_events()
+                            # A background task: the loop runs for as long as the
+                            # subscription lives, and Home Assistant must not wait
+                            # for it at startup or shutdown.
+                            self._rendering_control_renew_task = self._entry.async_create_background_task(
+                                self.hass,
+                                self._async_renew_rendering_control_events(),
+                                name=f"jbl_integration renew events {self.address}",
                             )
                         _LOGGER.debug(
                             "Subscribed RenderingControl events for %s: %s via %s",
