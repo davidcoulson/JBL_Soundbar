@@ -265,6 +265,8 @@ class Coordinator(DataUpdateCoordinator):
                             else:
                                 _LOGGER.error("Failed to fetch data: %s", response.status)
                                 return {}
+                        else:
+                            raise ConfigEntryNotReady(f"{self.address} answered HTTP {response.status}")
         except Exception as e:
             _LOGGER.error("Error fetching data: %s", str(e))
             raise ConfigEntryNotReady(f"Timeout while connecting to {self.address}") from e
