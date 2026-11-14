@@ -45,6 +45,8 @@ class JBLConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors[CONF_SCAN_INTERVAL] = "invalid_polling_rate"
 
             if not errors:
+                self._async_abort_entries_match({CONF_ADDRESS: ip_address})
+            if not errors:
                 coordinator = Coordinator(ip_address, polling_rate)
                 try:
                     device_Type = await coordinator.getDeviceType()
