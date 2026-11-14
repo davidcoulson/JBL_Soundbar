@@ -67,6 +67,8 @@ class JBLPowerSwitch(SwitchEntity):
 
     async def async_turn_on(self, **kwargs):
         """Turn the switch on."""
+        if self.is_on:
+            return  # the command is a toggle
         #Toggle Switch Fast
         #self._is_on = True
         #self.async_write_ha_state()
@@ -80,6 +82,8 @@ class JBLPowerSwitch(SwitchEntity):
 
     async def async_turn_off(self, **kwargs):
         """Turn the switch off."""
+        if not self.is_on:
+            return  # the command is a toggle
         #Toggle Switch Fast
         #self._is_on = False
         #self.async_write_ha_state()
@@ -203,11 +207,15 @@ class SmartModeSwitch(SwitchEntity):
 
     async def async_turn_on(self, **kwargs):
         """Turn the switch on."""
+        if self.is_on:
+            return  # the command is a toggle
         await self.coordinator._send_command("surround")
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs):
         """Turn the switch off."""
+        if not self.is_on:
+            return  # the command is a toggle
         await self.coordinator._send_command("surround")
         await self.coordinator.async_request_refresh()
 
