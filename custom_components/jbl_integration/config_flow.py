@@ -249,8 +249,8 @@ class OptionsFlowHandler(OptionsFlowWithReload):
             return self.async_create_entry(data=newData)
         
         schema = {
-            vol.Optional(CONF_ADDRESS, default=self.config_entry.data.get(CONF_ADDRESS, 5),): str,
-            vol.Optional(CONF_SCAN_INTERVAL, default=self.config_entry.data.get(CONF_SCAN_INTERVAL, 5),): int,
+            vol.Optional(CONF_ADDRESS, default=self.config_entry.data.get(CONF_ADDRESS, 5),): vol.Match(r"^\d{1,3}(\.\d{1,3}){3}$"),
+            vol.Optional(CONF_SCAN_INTERVAL, default=self.config_entry.data.get(CONF_SCAN_INTERVAL, 5),): vol.All(int, vol.Range(min=1, max=3600)),
         }
 
 
