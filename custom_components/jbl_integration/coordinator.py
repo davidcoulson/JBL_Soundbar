@@ -518,6 +518,16 @@ class Coordinator(DataUpdateCoordinator):
         if self._rendering_control_sid:
             return
 
+        if self._rendering_control_renew_task is None:
+            # A background task that lives as long as the entry (it also
+            # re-subscribes when the subscription is lost), and Home Assistant
+            # must not wait for it at startup or shutdown.
+            self._rendering_control_renew_task = self._entry.async_create_background_task(
+                self.hass,
+                self._async_renew_rendering_control_events(),
+                name=f"jbl_integration renew events {self.address}",
+            )
+
         callback_url = self._rendering_control_callback_url()
         url = f"http://{self.address}:49152/upnp/event/rendercontrol1"
         headers = {
@@ -540,15 +550,6 @@ class Coordinator(DataUpdateCoordinator):
                             return
 
                         self._rendering_control_sid = response.headers.get("SID")
-                        if self._rendering_control_sid and self._rendering_control_renew_task is None:
-                            # A background task: the loop runs for as long as the
-                            # subscription lives, and Home Assistant must not wait
-                            # for it at startup or shutdown.
-                            self._rendering_control_renew_task = self._entry.async_create_background_task(
-                                self.hass,
-                                self._async_renew_rendering_control_events(),
-                                name=f"jbl_integration renew events {self.address}",
-                            )
                         _LOGGER.debug(
                             "Subscribed RenderingControl events for %s: %s via %s",
                             self.address,
@@ -582,10 +583,12 @@ class Coordinator(DataUpdateCoordinator):
         """Renew RenderingControl GENA subscription before it expires."""
         url = f"http://{self.address}:49152/upnp/event/rendercontrol1"
 
-        while self._rendering_control_sid:
+        while True:
             await asyncio.sleep(240)
             if not self._rendering_control_sid:
-                return
+                # Initial subscribe failed or the subscription was lost.
+                await self.async_start_rendering_control_events()
+                continue
 
             headers = {
                 "SID": self._rendering_control_sid,
@@ -600,6 +603,9 @@ class Coordinator(DataUpdateCoordinator):
                                     "Failed to renew RenderingControl events: %s",
                                     response.status,
                                 )
+                                # Expired or unknown after a reboot: subscribe afresh.
+                                self._rendering_control_sid = None
+                                await self.async_start_rendering_control_events()
             except asyncio.CancelledError:
                 raise
             except Exception as e:
