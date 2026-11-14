@@ -6,7 +6,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
 from .coordinator import Coordinator
-from .entity import build_entity_id
+from .entity import JBLEntity, build_entity_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         JBLButton(coordinator,entry,"surround","Smart Mode","mdi:surround-sound"),
     ])
 
-class JBLButton(ButtonEntity):
+class JBLButton(JBLEntity, ButtonEntity):
     """Base class for a JBL button."""
 
     def __init__(self, coordinator, entry, actionstring, name, icon):

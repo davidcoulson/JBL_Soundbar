@@ -6,7 +6,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
 from .coordinator import Coordinator
-from .entity import build_entity_id
+from .entity import JBLEntity, build_entity_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities(entityArray)
 
 
-class JBLVolumeNumber(NumberEntity):
+class JBLVolumeNumber(JBLEntity, NumberEntity):
     """Representation of a switch to control JBL power."""
 
     def __init__(self, entry: ConfigEntry, coordinator: Coordinator):
@@ -106,7 +106,7 @@ class JBLVolumeNumber(NumberEntity):
         """Update the sensor."""
         await self.coordinator.async_request_refresh()
 
-class JBLEqNumber(NumberEntity):
+class JBLEqNumber(JBLEntity, NumberEntity):
     """Representation of a number to control the EQ."""
 
     def __init__(self, entry: ConfigEntry, coordinator: Coordinator, eqLevel ):

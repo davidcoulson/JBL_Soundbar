@@ -28,6 +28,7 @@ class Coordinator(DataUpdateCoordinator):
         self.address = address
         self.pollingRate = scan_interval
         self.data = {}
+        self.failed_polls = 0
         self._rendering_control_sid = None
         self._rendering_control_renew_task = None
 
@@ -143,9 +144,23 @@ class Coordinator(DataUpdateCoordinator):
                     if response.status != 200:
                         _LOGGER.error("Failed to send command: %s", response.status)
 
+    @property
+    def reachable(self):
+        """False after 2 consecutive failed polls (a soundbar that is off is unreachable)."""
+        return self.failed_polls < 2
+
+    def _record_poll(self, ok):
+        """Track consecutive failed polls; log only when reachability flips."""
+        was_reachable = self.reachable
+        self.failed_polls = 0 if ok else self.failed_polls + 1
+        if was_reachable != self.reachable:
+            _LOGGER.info("JBL soundbar %s is %s", self.address, "reachable again" if ok else "unreachable (treated as off)")
+
     async def _async_update_data(self):
+        info = await self.requestInfo()
+        self._record_poll(bool(info))
         combined_data = {
-            **await self.requestInfo(),
+            **info,
             **await self.getEQ(),
             **await self.getEQPresets(),
             **await self.getNightMode(),

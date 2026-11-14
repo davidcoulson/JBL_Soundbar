@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
 from .coordinator import Coordinator
-from .entity import build_entity_id
+from .entity import JBLEntity, build_entity_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities(entities)
 
 
-class JBLEQPresetSelect(SelectEntity):
+class JBLEQPresetSelect(JBLEntity, SelectEntity):
     """Select entity for JBL EQ presets."""
 
     def __init__(self, entry: ConfigEntry, coordinator: Coordinator):
