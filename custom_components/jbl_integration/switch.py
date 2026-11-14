@@ -6,7 +6,7 @@ from homeassistant.core import HomeAssistant, callback
 
 from .const import DOMAIN
 from .coordinator import Coordinator
-from .entity import build_entity_id
+from .entity import JBLEntity, build_entity_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities(entityArray)
 
 
-class JBLPowerSwitch(SwitchEntity):
+class JBLPowerSwitch(JBLEntity, SwitchEntity):
     """Representation of a switch to control JBL power."""
 
     def __init__(self, entry: ConfigEntry, coordinator: Coordinator):
@@ -50,9 +50,13 @@ class JBLPowerSwitch(SwitchEntity):
         return f"jbl_power_{self._entry.entry_id}"
 
     @property
+    def available(self):
+        return True  # unreachable reads as off, not unavailable
+
+    @property
     def is_on(self):
         """Return true if switch is on."""
-        return self.coordinator.data.get("play_medium") != "UNKNOWN"
+        return self.coordinator.reachable and self.coordinator.data.get("play_medium") != "UNKNOWN"
 
     @property
     def icon(self):
@@ -67,6 +71,8 @@ class JBLPowerSwitch(SwitchEntity):
 
     async def async_turn_on(self, **kwargs):
         """Turn the switch on."""
+        if self.is_on:
+            return  # the command is a toggle
         #Toggle Switch Fast
         #self._is_on = True
         #self.async_write_ha_state()
@@ -80,6 +86,8 @@ class JBLPowerSwitch(SwitchEntity):
 
     async def async_turn_off(self, **kwargs):
         """Turn the switch off."""
+        if not self.is_on:
+            return  # the command is a toggle
         #Toggle Switch Fast
         #self._is_on = False
         #self.async_write_ha_state()
@@ -102,7 +110,7 @@ class JBLPowerSwitch(SwitchEntity):
         """Update the sensor."""
         await self.coordinator.async_request_refresh()
 
-class NightModeSwitch(SwitchEntity):
+class NightModeSwitch(JBLEntity, SwitchEntity):
     """Representation of a switch to control JBL NightMode."""
 
     def __init__(self, entry: ConfigEntry, coordinator: Coordinator):
@@ -162,7 +170,7 @@ class NightModeSwitch(SwitchEntity):
         """Update the sensor."""
         await self.coordinator.async_request_refresh()
 
-class SmartModeSwitch(SwitchEntity):
+class SmartModeSwitch(JBLEntity, SwitchEntity):
     """Representation of a switch to control JBL SmartMode."""
 
     def __init__(self, entry: ConfigEntry, coordinator: Coordinator):
@@ -203,11 +211,15 @@ class SmartModeSwitch(SwitchEntity):
 
     async def async_turn_on(self, **kwargs):
         """Turn the switch on."""
+        if self.is_on:
+            return  # the command is a toggle
         await self.coordinator._send_command("surround")
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs):
         """Turn the switch off."""
+        if not self.is_on:
+            return  # the command is a toggle
         await self.coordinator._send_command("surround")
         await self.coordinator.async_request_refresh()
 
@@ -225,7 +237,7 @@ class SmartModeSwitch(SwitchEntity):
         await self.coordinator.async_request_refresh()
 
 
-class PureVoiceModeSwitch(SwitchEntity):
+class PureVoiceModeSwitch(JBLEntity, SwitchEntity):
     """Representation of a switch to control JBL PureVoice."""
 
     def __init__(self, entry: ConfigEntry, coordinator: Coordinator):

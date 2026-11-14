@@ -5,7 +5,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import DOMAIN
-from .entity import build_entity_id
+from .entity import JBLEntity, build_entity_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             JBLOnlineSensor(coordinator, entry, 1),
         ])
 
-class JBLChargingSensor(BinarySensorEntity):
+class JBLChargingSensor(JBLEntity, BinarySensorEntity):
     """Representation of a charging sensor for the JBL rear speakers."""
 
     def __init__(self, coordinator, entry, arrayNumber: int):
@@ -79,7 +79,7 @@ class JBLChargingSensor(BinarySensorEntity):
         """Update the sensor."""
         await self.coordinator.async_request_refresh()
 
-class JBLDockedSensor(BinarySensorEntity):
+class JBLDockedSensor(JBLEntity, BinarySensorEntity):
     """Representation of a docked sensor for the JBL rear speakers."""
 
     def __init__(self, coordinator, entry, arrayNumber: int):
@@ -135,7 +135,7 @@ class JBLDockedSensor(BinarySensorEntity):
         """Update the sensor."""
         await self.coordinator.async_request_refresh()
 
-class JBLOnlineSensor(BinarySensorEntity):
+class JBLOnlineSensor(JBLEntity, BinarySensorEntity):
     """Representation of an online sensor for the JBL rear speakers."""
 
     def __init__(self, coordinator, entry, arrayNumber: int):

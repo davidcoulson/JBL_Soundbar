@@ -3,6 +3,14 @@
 from homeassistant.util import slugify
 
 
+class JBLEntity:
+    """Mixin: entities are unavailable while the soundbar is unreachable."""
+
+    @property
+    def available(self):
+        return self.coordinator.reachable
+
+
 def entity_id_slug(value: str) -> str:
     """Return a Home Assistant-safe slug for manual entity IDs."""
     return slugify(value).replace("-", "_")

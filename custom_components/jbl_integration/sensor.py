@@ -16,7 +16,7 @@ from homeassistant.components.sensor import (
 
 from .const import DOMAIN
 from .coordinator import Coordinator
-from .entity import build_entity_id
+from .entity import JBLEntity, build_entity_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities(entityArray)
 
     
-class JBLSensor(Entity):
+class JBLSensor(JBLEntity, Entity):
     """Representation of a sensor to get JBL PlayMedium."""
 
     def __init__(self, coordinator, entry, infoString, name, icon):
@@ -107,7 +107,7 @@ class JBLSensor(Entity):
         """Update the sensor."""
         await self.coordinator.async_request_refresh()
 
-class JBLRearSensor(Entity):
+class JBLRearSensor(JBLEntity, Entity):
     """Representation of a battery for the rear speakers of the  JBL."""
 
     def __init__(self, coordinator, entry, arrayNumber: int):
